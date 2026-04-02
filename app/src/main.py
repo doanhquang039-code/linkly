@@ -1,21 +1,19 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
 import redis.asyncio as redis
 import os
 from . import schemas, crud
 from .database import engine
 from .models import Base
-from sqlalchemy import text
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Tạo bảng khi startup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         print("✅ Database tables created successfully!")
     yield
-    # Cleanup nếu cần
     await engine.dispose()
 
 app = FastAPI(title="Linkly - URL Shortener", version="1.0.0", lifespan=lifespan)
@@ -44,7 +42,6 @@ async def redirect_url(short_code: str):
     original_url = await crud.get_original_url(short_code, redis_client)
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
+    
     await crud.increment_clicks(short_code, redis_client)
-    # Redirect thật (thay vì return json)
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=original_url)
+    return RedirectResponse(url=original_url, status_code=302)
