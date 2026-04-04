@@ -1,12 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from contextlib import asynccontextmanager
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import redis.asyncio as redis
 import os
 from . import schemas, crud
 from .database import engine
 from .models import Base
+
+limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,8 +33,9 @@ app.add_middleware(
 redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
 
 @app.post("/shorten", response_model=schemas.ShortenResponse)
-async def shorten_url(request: schemas.URLCreate):
-    short_code = await crud.create_short_url(str(request.original_url), redis_client)
+@limiter.limit("10/minute")   # Giới hạn 10 lần/phút mỗi IP
+async def shorten_url(request: Request, url: schemas.URLCreate):
+    short_code = await crud.create_short_url(str(url.original_url), redis_client)
     base_url = os.getenv("BASE_URL", "http://localhost")
     return schemas.ShortenResponse(
         short_code=short_code,
@@ -39,10 +44,8 @@ async def shorten_url(request: schemas.URLCreate):
 
 @app.get("/{short_code}")
 async def redirect_url(short_code: str):
-    """Redirect to original URL"""
     original_url = await crud.get_original_url(short_code, redis_client)
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
-    
     await crud.increment_clicks(short_code, redis_client)
     return RedirectResponse(url=original_url, status_code=302)

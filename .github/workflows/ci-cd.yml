@@ -1,0 +1,27 @@
+name: CI/CD - Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build Docker image
+      run: docker compose build
+
+    - name: Run containers
+      run: docker compose up -d
+
+    - name: Test shorten API
+      run: |
+        sleep 10
+        curl -X POST http://localhost/shorten \
+          -H "Content-Type: application/json" \
+          -d '{"original_url": "https://google.com"}'
