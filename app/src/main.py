@@ -10,7 +10,6 @@ from .models import Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Tạo bảng database khi khởi động
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         print("✅ Database tables created successfully!")
@@ -40,13 +39,10 @@ async def shorten_url(request: schemas.URLCreate):
 
 @app.get("/{short_code}")
 async def redirect_url(short_code: str):
-    """Redirect người dùng đến link gốc"""
+    """Redirect to original URL"""
     original_url = await crud.get_original_url(short_code, redis_client)
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
     
-    # Tăng số lượt click
     await crud.increment_clicks(short_code, redis_client)
-    
-    # Redirect thật (302)
     return RedirectResponse(url=original_url, status_code=302)
