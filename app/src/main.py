@@ -32,8 +32,12 @@ app.add_middleware(
 
 redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 @app.post("/shorten", response_model=schemas.ShortenResponse)
-@limiter.limit("10/minute")   # Giới hạn 10 lần/phút mỗi IP
+@limiter.limit("10/minute")
 async def shorten_url(request: Request, url: schemas.URLCreate):
     short_code = await crud.create_short_url(str(url.original_url), redis_client)
     base_url = os.getenv("BASE_URL", "http://localhost")
@@ -44,8 +48,10 @@ async def shorten_url(request: Request, url: schemas.URLCreate):
 
 @app.get("/{short_code}")
 async def redirect_url(short_code: str):
+    """Redirect to the original URL"""
     original_url = await crud.get_original_url(short_code, redis_client)
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
+    
     await crud.increment_clicks(short_code, redis_client)
     return RedirectResponse(url=original_url, status_code=302)
