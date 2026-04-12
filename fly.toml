@@ -1,0 +1,21 @@
+app = "linkly-doanh"          # Đổi tên này thành tên duy nhất bạn muốn (ví dụ: linkly-doanh123)
+primary_region = "sin"        # Singapore (gần Việt Nam, nhanh)
+
+[build]
+  dockerfile = "app/Dockerfile"
+
+[env]
+  PORT = "8000"
+  BASE_URL = "https://linkly-doanh.fly.dev"   # Sẽ thay sau khi deploy
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
