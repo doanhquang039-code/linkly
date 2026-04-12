@@ -6,3 +6,5 @@ redis==5.0.8
 python-dotenv==1.0.1
 shortuuid==1.0.1
 slowapi==0.1.9
+qrcode[pil]==7.4.2
+Pillow==10.4.0
